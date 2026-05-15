@@ -130,6 +130,8 @@ int main()
     start = std::chrono::system_clock::now();
     block_scan<<<blocks, threads_pb>>>(in_d, block_results_d);
     cudaMemcpy(block_results_h, block_results_d, blocks * 2 * sizeof(float), cudaMemcpyDeviceToHost);
+    // Possible rerun of block_scan with in_d = block_results_d and block_results_d = new_block_results_d.
+    // And blocks /= BLOCK_DIM 
     std::pair<float, float> result = sequential_scan_last_value(blocks * 2, block_results_h);
     end = std::chrono::system_clock::now();
 

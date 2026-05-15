@@ -1,3 +1,5 @@
+BLOCK_DIM 512
+
 ------------ CPU ------------
 Elapsed time: 0.234716s
 ------------ CPU ------------
@@ -8,3 +10,16 @@ final value cpu
 a: -0.790958 b: 0.613147
 final value gpu
 a: -0.791254 b: 0.613448
+
+BLOCK_DIM 1024
+
+------------ CPU ------------
+Elapsed time: 0.227939s
+------------ CPU ------------
+------------ GPU ------------
+Elapsed time: 0.142656s
+------------ GPU ------------
+final value cpu
+a: -0.790958 b: 0.613147
+final value gpu
+a: -0.791237 b: 0.613325
