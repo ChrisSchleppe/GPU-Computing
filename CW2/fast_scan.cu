@@ -121,8 +121,11 @@ int main()
     sequential_scan(size, in_h, out_h);
     auto end = std::chrono::system_clock::now();
 
+    std::cout << "------------ CPU ------------" << std::endl;
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::cout << "Elapsed time: " << elapsed_seconds.count() << "s" << std::endl;
+    std::cout << "------------ CPU ------------" << std::endl;
+
 
     start = std::chrono::system_clock::now();
     block_scan<<<blocks, threads_pb>>>(in_d, block_results_d);
@@ -130,8 +133,10 @@ int main()
     std::pair<float, float> result = sequential_scan_last_value(blocks * 2, block_results_h);
     end = std::chrono::system_clock::now();
 
+    std::cout << "------------ GPU ------------" << std::endl;
     elapsed_seconds = end - start;
     std::cout << "Elapsed time: " << elapsed_seconds.count() << "s" << std::endl;
+    std::cout << "------------ GPU ------------" << std::endl;
     
 
     // ------------ CHECK CORRECTNESS ------------
