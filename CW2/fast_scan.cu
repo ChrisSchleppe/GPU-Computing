@@ -26,7 +26,7 @@ __global__ void segment_mult(float* input, float* output)
     }
 
     // //stride doesn't make sense 
-    for (auto stride = blockDim.x / 2; stride >= 1; stride /= 2)
+    for (auto stride = blockDim.x / 2; stride >= 2; stride /= 2)
     {
         __syncthreads();
         if(l_id < stride && l_id % 2 == 0)
@@ -85,7 +85,8 @@ int main()
     int threads_pb = BLOCK_DIM;
     
     // Initialize
-    int e = random_init(size, in_d, in_h);
+    //int e = random_init(size, in_d, in_h);
+    int e = init_unit_circle(size, in_d, in_h);
     if (e == EXIT_FAILURE)
         return EXIT_FAILURE;
 
@@ -96,22 +97,28 @@ int main()
     // std::cout << "First 3 entries of In Vec:" << std::endl;
     // for (int32_t i = 0; i < 5 * 2; i += 2)
     //     std::cout << in_h[i] << "," << in_h[i + 1] << std::endl;
-    // std::cout << "First 3 entries of Out Vec:" << std::endl;
-    // for (int32_t i = 0; i < 5 * 2; i += 2)
+    // std::cout << "First n entries of Out Vec:" << std::endl;
+    // for (int32_t i = 0; i < size/2 * 2; i += 2)
     //     std::cout << out_h[i] << " + " << out_h[i + 1] << std::endl;
+
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::cout << "Elapsed time: " << elapsed_seconds.count() << "s" << std::endl;
+
+    CUDA_CALL(cudaMemcpy(out_d, out_h, size * sizeof(float), cudaMemcpyDeviceToHost)); 
     
 
     start = std::chrono::system_clock::now();
     segment_mult<<<blocks, threads_pb>>>(in_d, out_d);
     end = std::chrono::system_clock::now();
+
+    CUDA_CALL(cudaMemcpy(out_d, out_h, size * sizeof(float), cudaMemcpyDeviceToHost)); 
     
     // ------------ CHECK CORRECTNESS ------------
     std::cout << "final value cpu" << std::endl;
     std::cout << "a: " << out_h[size - 2] << " b: " << out_h[size - 1] << std::endl;
     
-
+    for (int32_t i = 0; i < 10 * 2; i += 2)
+        std::cout << out_h[i] << " + " << out_h[i + 1] << std::endl;
 
     // ------------ CHECK CORRECTNESS ------------
     
