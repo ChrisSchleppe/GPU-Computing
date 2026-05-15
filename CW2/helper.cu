@@ -70,3 +70,19 @@ int random_init(size_t size, float *in_d, float *in_h)
 
     return EXIT_SUCCESS;
 }
+
+int init_unit_circle(size_t size, float *in_d, float *in_h)
+{
+    // Instead of random floats, initialize as e^(iθ) = cos(θ) + i·sin(θ)
+    for (size_t i = 0; i < size; i += 2) {
+        float theta = ((float)rand() / RAND_MAX) * 2.0f * M_PI;
+        in_h[i]     = cosf(theta);   // real part
+        in_h[i + 1] = sinf(theta);   // imaginary part
+    }
+
+        // Copy device memory to host
+    CUDA_CALL(cudaMemcpy(in_d, in_h, size * sizeof(float),
+                         cudaMemcpyHostToDevice));
+
+    return EXIT_SUCCESS;
+}
