@@ -1,0 +1,15 @@
+-------------------- GPU 512 blocksize ----------------------
+Elapsed time: 195.304 ms
+-------------------- GPU 256 block size ----------------------
+Elapsed time: 199.329 ms
+-------------------- GPU 128 blocksize ----------------------
+Elapsed time: 218.083 ms
+-------------------- GPU 32 blocksize ----------------------
+Elapsed time: 187.436 ms
+-------------------- GPU 16 blocksize ----------------------
+Elapsed time: 76.8895 ms
+-------------------- GPU 8 blocksize ----------------------
+Elapsed time: 69.5341 ms
+-------------------- CPU ----------------------
+Elapsed time: 4434782625s
+correct calculation
