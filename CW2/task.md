@@ -7,7 +7,7 @@ Your task for this week is to implement a parallel **inclusive scan** (prefix su
 ![Kogge-Stone algorithm](image.png)
 
 Complex numbers are represented as adjacent pairs of floats representing the real and imaginary part (see `slow_scan.cu`).
-N complex numbers are therefore represented as an arry of N*2 floats.
+N complex numbers are therefore represented as an array of N*2 floats.
 
 The operation for the scan is **complex multiplication**.
 
