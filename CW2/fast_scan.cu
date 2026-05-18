@@ -14,31 +14,34 @@ __global__ void block_scan(float *input, float *output)
     __shared__ float products_s[BLOCK_DIM * 2];
 
     // Segment should be 4 times blocksize because it combines 2 complex numbers that occupy 4 floats in input.
-    //auto segment = 2 * COARSE_FACTOR * blockDim.x * blockIdx.x;
-    auto segment = 2 * 2 * blockDim.x * blockIdx.x;
+    auto segment = 2 * COARSE_FACTOR * blockDim.x * blockIdx.x;
+    //auto segment = 2 * 2 * blockDim.x * blockIdx.x;
     
-    auto g_id = segment + threadIdx.x;
-    auto l_id = threadIdx.x;
+    auto g_id = segment + threadIdx.x * 2;
+    auto l_id = threadIdx.x * 2;
     //This serves the purpose to index every second element. 
-    auto index_local = l_id * 2;
 
     // ------------ THREAD COARSENING ------------
-    // // output[i] = ac - bd
-    // float a = input[g_id] * input[g_id + BLOCK_DIM] - input[g_id + 1] * input[g_id + BLOCK_DIM + 1];
-    // // output[i+1] = ad + bc
-    // float b = input[g_id] * input[g_id + BLOCK_DIM + 1] + input[g_id + 1] * input[g_id + BLOCK_DIM];
+    float a = input[g_id];
+    float b = input[g_id + 1];
 
-    // for (auto tile = 1; tile < COARSE_FACTOR * 2; ++tile)
-    // {
-    //     products_s[l_id] = input[g_id + tile * BLOCK_DIM];
-    //     products_s[l_id + 1] = input[g_id + 1 + tile * BLOCK_DIM];
-    // }
+    for (auto tile = 1; tile < COARSE_FACTOR * 2; ++tile)
+    {
+        auto a_temp = a;
+        auto b_temp = b;
+        auto c = input[g_id + tile * BLOCK_DIM];
+        auto d = input[g_id + 1 + tile * BLOCK_DIM];
+        a = a_temp * c - b_temp * d;
+        b = a_temp * d + b_temp * c;
+    }
+    products_s[l_id] = a;
+    products_s[l_id + 1] = b;
     // ------------ THREAD COARSENING ------------
 
     // output[i] = ac - bd
-    products_s[index_local] = input[g_id] * input[g_id + BLOCK_DIM] - input[g_id + 1] * input[g_id + BLOCK_DIM + 1];
+    // products_s[l_id] = input[g_id] * input[g_id + BLOCK_DIM] - input[g_id + 1] * input[g_id + BLOCK_DIM + 1];
     // output[i+1] = ad + bc
-    products_s[index_local + 1] = input[g_id] * input[g_id + BLOCK_DIM + 1] + input[g_id + 1] * input[g_id + BLOCK_DIM];
+    // products_s[l_id + 1] = input[g_id] * input[g_id + BLOCK_DIM + 1] + input[g_id + 1] * input[g_id + BLOCK_DIM];
     
 
     for (auto stride = blockDim.x; stride >= 2; stride /= 2)
@@ -46,13 +49,13 @@ __global__ void block_scan(float *input, float *output)
         __syncthreads();
         if (l_id < stride)
         {                                                                                
-            auto a = products_s[index_local];
-            auto b = products_s[index_local + 1];
-            auto c = products_s[index_local + stride];
-            auto d = products_s[index_local + stride + 1];
+            auto a = products_s[l_id];
+            auto b = products_s[l_id + 1];
+            auto c = products_s[l_id + stride];
+            auto d = products_s[l_id + stride + 1];
 
-            products_s[index_local] = a * c - b * d;
-            products_s[index_local + 1] = a * d + b * c;
+            products_s[l_id] = a * c - b * d;
+            products_s[l_id + 1] = a * d + b * c;
         }
     }
 
