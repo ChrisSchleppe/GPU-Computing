@@ -10,60 +10,60 @@
 
 __global__ void block_scan(float *input, float *output)
 {
-    // shared structure for block product. Needs to *2 becase each threads processes 2 floats.
-    __shared__ float products_s[BLOCK_DIM * 2];
+    __shared__ float2 products_s[BLOCK_DIM];
 
-    // Segment should be 4 times blocksize because it combines 2 complex numbers that occupy 4 floats in input.
     auto segment = 2 * COARSE_FACTOR * blockDim.x * blockIdx.x;
     //auto segment = 2 * 2 * blockDim.x * blockIdx.x;
     
     auto g_id = segment + threadIdx.x * 2;
-    auto l_id = threadIdx.x * 2;
+    auto l_id = threadIdx.x;
     //This serves the purpose to index every second element. 
 
     // ------------ THREAD COARSENING ------------
     float a = input[g_id];
     float b = input[g_id + 1];
 
-    for (auto tile = 1; tile < COARSE_FACTOR * 2; ++tile)
+    for (auto tile = 1; tile < COARSE_FACTOR; ++tile)
     {
         auto a_temp = a;
         auto b_temp = b;
-        auto c = input[g_id + tile * BLOCK_DIM];
-        auto d = input[g_id + 1 + tile * BLOCK_DIM];
+        auto c = input[g_id + tile * 2 * BLOCK_DIM];
+        auto d = input[g_id + 1 + tile * 2 * BLOCK_DIM];
         a = a_temp * c - b_temp * d;
         b = a_temp * d + b_temp * c;
     }
-    products_s[l_id] = a;
-    products_s[l_id + 1] = b;
-    // ------------ THREAD COARSENING ------------
+    products_s[l_id].x = a;
+    products_s[l_id].y = b;
 
+    // ------------ THREAD COARSENING ------------
+    // ------------ NO THREAD COARSENING ------------
     // output[i] = ac - bd
     // products_s[l_id] = input[g_id] * input[g_id + BLOCK_DIM] - input[g_id + 1] * input[g_id + BLOCK_DIM + 1];
     // output[i+1] = ad + bc
     // products_s[l_id + 1] = input[g_id] * input[g_id + BLOCK_DIM + 1] + input[g_id + 1] * input[g_id + BLOCK_DIM];
+    // ------------ NO THREAD COARSENING ------------
     
 
-    for (auto stride = blockDim.x; stride >= 2; stride /= 2)
+    for (auto stride = blockDim.x / 2; stride >= 1; stride /= 2)
     {
         __syncthreads();
         if (l_id < stride)
         {                                                                                
-            auto a = products_s[l_id];
-            auto b = products_s[l_id + 1];
-            auto c = products_s[l_id + stride];
-            auto d = products_s[l_id + stride + 1];
+            auto a = products_s[l_id].x;
+            auto b = products_s[l_id].y;
+            auto c = products_s[l_id + stride].x;
+            auto d = products_s[l_id + stride].y;
 
-            products_s[l_id] = a * c - b * d;
-            products_s[l_id + 1] = a * d + b * c;
+            products_s[l_id].x = a * c - b * d;
+            products_s[l_id].y = a * d + b * c;
         }
     }
 
     // save output to global memory
     if (l_id == 0)
     {
-        output[blockIdx.x * 2] = products_s[0];
-        output[blockIdx.x * 2 + 1] = products_s[1];
+        output[blockIdx.x * 2] = products_s[0].x;
+        output[blockIdx.x * 2 + 1] = products_s[0].y;
     }
 }
 
@@ -109,7 +109,7 @@ int main()
     float *in_d, *in_h, *out_h;
 
     // Kernel hyperparameters
-    int blocks = size / (2 * BLOCK_DIM);
+    int blocks = size / (2 * BLOCK_DIM * COARSE_FACTOR);
     int threads_pb = BLOCK_DIM;
 
     // Allocate on host
