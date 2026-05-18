@@ -5,7 +5,7 @@
 
 #include "helper.cu"
 
-#define BLOCK_DIM 512
+#define BLOCK_DIM 1024
 #define COARSE_FACTOR 32
 
 __global__ void block_scan(float *input, float *output)
@@ -36,13 +36,6 @@ __global__ void block_scan(float *input, float *output)
     products_s[l_id].y = b;
 
     // ------------ THREAD COARSENING ------------
-    // ------------ NO THREAD COARSENING ------------
-    // output[i] = ac - bd
-    // products_s[l_id] = input[g_id] * input[g_id + BLOCK_DIM] - input[g_id + 1] * input[g_id + BLOCK_DIM + 1];
-    // output[i+1] = ad + bc
-    // products_s[l_id + 1] = input[g_id] * input[g_id + BLOCK_DIM + 1] + input[g_id + 1] * input[g_id + BLOCK_DIM];
-    // ------------ NO THREAD COARSENING ------------
-    
 
     for (auto stride = blockDim.x / 2; stride >= 1; stride /= 2)
     {

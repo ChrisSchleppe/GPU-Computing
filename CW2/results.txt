@@ -1,25 +1,37 @@
+BLOCK_DIM 1024
+
+Elapsed time: 0.242551s
+------------ CPU ------------
+------------ GPU ------------
+Elapsed time: 0.0565817s
+------------ GPU ------------
+final value cpu
+a: -0.790958 b: 0.613147
+final value gpu
+a: -0.791224 b: 0.613372
+
 BLOCK_DIM 512
 
 ------------ CPU ------------
-Elapsed time: 0.234716s
+Elapsed time: 0.252886s
 ------------ CPU ------------
 ------------ GPU ------------
-Elapsed time: 0.00999598s
+Elapsed time: 0.00376982s
 ------------ GPU ------------
 final value cpu
 a: -0.790958 b: 0.613147
 final value gpu
-a: -0.791254 b: 0.613448
+a: -0.791259 b: 0.613308
 
-BLOCK_DIM 1024
+BLOCK_DIM 256
 
 ------------ CPU ------------
-Elapsed time: 0.227939s
+Elapsed time: 0.239935s
 ------------ CPU ------------
 ------------ GPU ------------
-Elapsed time: 0.142656s
+Elapsed time: 0.00444245s
 ------------ GPU ------------
 final value cpu
 a: -0.790958 b: 0.613147
 final value gpu
-a: -0.791237 b: 0.613325
+a: -0.791259 b: 0.613308
