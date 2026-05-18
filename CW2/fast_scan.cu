@@ -6,38 +6,53 @@
 #include "helper.cu"
 
 #define BLOCK_DIM 512
+#define COARSE_FACTOR 32
 
 __global__ void block_scan(float *input, float *output)
 {
-    // shared structure for block product
-    __shared__ float products_s[BLOCK_DIM];
+    // shared structure for block product. Needs to *2 becase each threads processes 2 floats.
+    __shared__ float products_s[BLOCK_DIM * 2];
 
     // Segment should be 4 times blocksize because it combines 2 complex numbers that occupy 4 floats in input.
-    auto segment = 2 * blockDim.x * blockIdx.x;
+    //auto segment = 2 * COARSE_FACTOR * blockDim.x * blockIdx.x;
+    auto segment = 2 * 2 * blockDim.x * blockIdx.x;
+    
     auto g_id = segment + threadIdx.x;
     auto l_id = threadIdx.x;
+    //This serves the purpose to index every second element. 
+    auto index_local = l_id * 2;
 
-    if (l_id % 2 == 0)
-    {
-        // output[i] = ac - bd
-        products_s[l_id] = input[g_id] * input[g_id + BLOCK_DIM] - input[g_id + 1] * input[g_id + BLOCK_DIM + 1];
-        // output[i+1] = ad + bc
-        products_s[l_id + 1] = input[g_id] * input[g_id + BLOCK_DIM + 1] + input[g_id + 1] * input[g_id + BLOCK_DIM];
-    }
+    // ------------ THREAD COARSENING ------------
+    // // output[i] = ac - bd
+    // float a = input[g_id] * input[g_id + BLOCK_DIM] - input[g_id + 1] * input[g_id + BLOCK_DIM + 1];
+    // // output[i+1] = ad + bc
+    // float b = input[g_id] * input[g_id + BLOCK_DIM + 1] + input[g_id + 1] * input[g_id + BLOCK_DIM];
 
-    // //stride doesn't make sense
-    for (auto stride = blockDim.x / 2; stride >= 2; stride /= 2)
+    // for (auto tile = 1; tile < COARSE_FACTOR * 2; ++tile)
+    // {
+    //     products_s[l_id] = input[g_id + tile * BLOCK_DIM];
+    //     products_s[l_id + 1] = input[g_id + 1 + tile * BLOCK_DIM];
+    // }
+    // ------------ THREAD COARSENING ------------
+
+    // output[i] = ac - bd
+    products_s[index_local] = input[g_id] * input[g_id + BLOCK_DIM] - input[g_id + 1] * input[g_id + BLOCK_DIM + 1];
+    // output[i+1] = ad + bc
+    products_s[index_local + 1] = input[g_id] * input[g_id + BLOCK_DIM + 1] + input[g_id + 1] * input[g_id + BLOCK_DIM];
+    
+
+    for (auto stride = blockDim.x; stride >= 2; stride /= 2)
     {
         __syncthreads();
-        if (l_id < stride && l_id % 2 == 0)
-        {
-            auto a = products_s[l_id];
-            auto b = products_s[l_id + 1];
-            auto c = products_s[l_id + stride];
-            auto d = products_s[l_id + stride + 1];
+        if (l_id < stride)
+        {                                                                                
+            auto a = products_s[index_local];
+            auto b = products_s[index_local + 1];
+            auto c = products_s[index_local + stride];
+            auto d = products_s[index_local + stride + 1];
 
-            products_s[l_id] = a * c - b * d;
-            products_s[l_id + 1] = a * d + b * c;
+            products_s[index_local] = a * c - b * d;
+            products_s[index_local + 1] = a * d + b * c;
         }
     }
 
@@ -48,7 +63,6 @@ __global__ void block_scan(float *input, float *output)
         output[blockIdx.x * 2 + 1] = products_s[1];
     }
 }
-
 
 void sequential_scan(size_t size, float *in_h, float *out_h)
 {
@@ -86,16 +100,15 @@ std::pair<float, float> sequential_scan_last_value(size_t size, float *input)
     return {out_h[size - 2], out_h[size - 1]};
 }
 
-
 int main()
 {
     size_t size = 33554432 * 2;
     float *in_d, *in_h, *out_h;
-    
+
     // Kernel hyperparameters
     int blocks = size / (2 * BLOCK_DIM);
     int threads_pb = BLOCK_DIM;
-        
+
     // Allocate on host
     in_h = (float *)calloc(size, sizeof(float));
     CHECK_ALLOC(in_h);
@@ -126,12 +139,11 @@ int main()
     std::cout << "Elapsed time: " << elapsed_seconds.count() << "s" << std::endl;
     std::cout << "------------ CPU ------------" << std::endl;
 
-
     start = std::chrono::system_clock::now();
     block_scan<<<blocks, threads_pb>>>(in_d, block_results_d);
     cudaMemcpy(block_results_h, block_results_d, blocks * 2 * sizeof(float), cudaMemcpyDeviceToHost);
     // Possible rerun of block_scan with in_d = block_results_d and block_results_d = new_block_results_d.
-    // And blocks /= BLOCK_DIM 
+    // And blocks /= BLOCK_DIM
     std::pair<float, float> result = sequential_scan_last_value(blocks * 2, block_results_h);
     end = std::chrono::system_clock::now();
 
@@ -139,7 +151,6 @@ int main()
     elapsed_seconds = end - start;
     std::cout << "Elapsed time: " << elapsed_seconds.count() << "s" << std::endl;
     std::cout << "------------ GPU ------------" << std::endl;
-    
 
     // ------------ CHECK CORRECTNESS ------------
     std::cout << "final value cpu" << std::endl;
